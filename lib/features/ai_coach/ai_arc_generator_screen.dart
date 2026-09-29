@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_typography.dart';
-import '../../core/engine/arc_engine.dart';
 import '../../core/models/models.dart';
-import '../../core/repositories/arc_repository.dart';
+import '../../core/providers/ai_service_provider.dart';
+import '../../core/providers/arc_providers.dart';
 import '../../shared/widgets/arc_button.dart';
 import '../../shared/widgets/arc_card.dart';
 import '../shell/app_shell.dart';
 
-class AiArcGeneratorScreen extends StatefulWidget {
+class AiArcGeneratorScreen extends ConsumerStatefulWidget {
   const AiArcGeneratorScreen({super.key});
 
   @override
-  State<AiArcGeneratorScreen> createState() => _AiArcGeneratorScreenState();
+  ConsumerState<AiArcGeneratorScreen> createState() => _AiArcGeneratorScreenState();
 }
 
-class _AiArcGeneratorScreenState extends State<AiArcGeneratorScreen> {
+class _AiArcGeneratorScreenState extends ConsumerState<AiArcGeneratorScreen> {
   final TextEditingController _promptController = TextEditingController(
     text: 'I want to learn Blender 3D modeling and rendering in 60 days',
   );
@@ -23,26 +24,38 @@ class _AiArcGeneratorScreenState extends State<AiArcGeneratorScreen> {
   bool _isGenerating = false;
   bool _isActivating = false;
 
-  void _generateArc() {
+  Future<void> _generateArc() async {
     final text = _promptController.text.trim();
     if (text.isEmpty) return;
 
     setState(() => _isGenerating = true);
-    Future.delayed(const Duration(milliseconds: 600), () {
+    try {
+      final aiService = ref.read(aiServiceProvider);
+      final arc = await aiService.generateArcFromPrompt(text);
       if (mounted) {
         setState(() {
-          _generatedArc = ArcEngine.generateFromPrompt(text);
+          _generatedArc = arc;
           _isGenerating = false;
         });
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isGenerating = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Generation error: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _approveAndActivate() async {
     if (_generatedArc == null) return;
     setState(() => _isActivating = true);
 
-    await ArcRepository().createCustomArc(_generatedArc!, activateImmediately: true);
+    await ref.read(activeArcProvider.notifier).activateArc(_generatedArc!);
 
     if (mounted) {
       setState(() => _isActivating = false);
@@ -115,7 +128,7 @@ class _AiArcGeneratorScreenState extends State<AiArcGeneratorScreen> {
 
               // Generate Action
               ArcButton(
-                label: _isGenerating ? 'SYNTHESIZING ARC...' : 'GENERATE ARC →',
+                label: _isGenerating ? 'SYNTHESIZING ARC WITH AI...' : 'GENERATE ARC →',
                 isLoading: _isGenerating,
                 onPressed: _generateArc,
               ),

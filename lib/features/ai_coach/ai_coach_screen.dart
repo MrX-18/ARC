@@ -39,8 +39,9 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
   void _seedInitialMessage() {
     final active = ref.read(activeArcProvider);
     final title = active?.title ?? 'my current Arc';
-    ref.read(aiCoachProvider.notifier).sendMessage(
+    ref.read(aiCoachProvider.notifier).sendStreamingMessage(
       'Hello Coach. I am ready to review my $title progress.',
+      active,
     );
   }
 
@@ -70,7 +71,8 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
     _textController.clear();
     setState(() => _isSending = true);
 
-    await ref.read(aiCoachProvider.notifier).sendMessage(clean);
+    final activeArc = ref.read(activeArcProvider);
+    await ref.read(aiCoachProvider.notifier).sendStreamingMessage(clean, activeArc);
 
     if (mounted) {
       setState(() => _isSending = false);
