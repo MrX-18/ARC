@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_typography.dart';
-import '../../core/repositories/arc_repository.dart';
+import '../../core/providers/ai_coach_provider.dart';
+import '../../core/providers/arc_providers.dart';
 import 'ai_arc_generator_screen.dart';
 
-class AiCoachScreen extends StatefulWidget {
+class AiCoachScreen extends ConsumerStatefulWidget {
   const AiCoachScreen({super.key});
 
   @override
-  State<AiCoachScreen> createState() => _AiCoachScreenState();
+  ConsumerState<AiCoachScreen> createState() => _AiCoachScreenState();
 }
 
-class _AiCoachScreenState extends State<AiCoachScreen> {
-  final ArcRepository _arcRepo = ArcRepository();
+class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isSending = false;
@@ -27,34 +28,27 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
   @override
   void initState() {
     super.initState();
-    _arcRepo.addListener(_onRepoUpdated);
-    // Seed initial greeting message if empty
-    if (_arcRepo.aiMessages.isEmpty) {
-      _seedInitialMessage();
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final messages = ref.read(aiCoachProvider);
+      if (messages.isEmpty) {
+        _seedInitialMessage();
+      }
+    });
   }
 
   void _seedInitialMessage() {
-    final active = _arcRepo.activeArc;
+    final active = ref.read(activeArcProvider);
     final title = active?.title ?? 'my current Arc';
-    _arcRepo.sendAiMessage(
+    ref.read(aiCoachProvider.notifier).sendMessage(
       'Hello Coach. I am ready to review my $title progress.',
     );
   }
 
   @override
   void dispose() {
-    _arcRepo.removeListener(_onRepoUpdated);
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  void _onRepoUpdated() {
-    if (mounted) {
-      setState(() {});
-      _scrollToBottom();
-    }
   }
 
   void _scrollToBottom() {
@@ -76,17 +70,18 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
     _textController.clear();
     setState(() => _isSending = true);
 
-    await _arcRepo.sendAiMessage(clean);
+    await ref.read(aiCoachProvider.notifier).sendMessage(clean);
 
     if (mounted) {
       setState(() => _isSending = false);
+      _scrollToBottom();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final active = _arcRepo.activeArc;
-    final messages = _arcRepo.aiMessages;
+    final active = ref.watch(activeArcProvider);
+    final messages = ref.watch(aiCoachProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,

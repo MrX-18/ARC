@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_typography.dart';
-import '../../core/repositories/arc_repository.dart';
-import '../../core/repositories/user_repository.dart';
+import '../../core/providers/arc_providers.dart';
+import '../../core/providers/user_provider.dart';
 import '../../shared/widgets/arc_card.dart';
 import '../../shared/widgets/state_views.dart';
 import '../onboarding/goal_selection_screen.dart';
@@ -13,7 +14,7 @@ import '../arc_progress/arc_milestones_screen.dart';
 import '../analytics/progress_overview_screen.dart';
 import '../profile/notifications_screen.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   final VoidCallback? onNavigateToCards;
   final VoidCallback? onNavigateToArcs;
 
@@ -24,34 +25,15 @@ class HomeScreen extends StatefulWidget {
   });
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  final ArcRepository _arcRepo = ArcRepository();
-  final UserRepository _userRepo = UserRepository();
-
-  @override
-  void initState() {
-    super.initState();
-    _arcRepo.addListener(_onRepoUpdated);
-    _userRepo.addListener(_onRepoUpdated);
-  }
-
-  @override
-  void dispose() {
-    _arcRepo.removeListener(_onRepoUpdated);
-    _userRepo.removeListener(_onRepoUpdated);
-    super.dispose();
-  }
-
-  void _onRepoUpdated() {
-    if (mounted) setState(() {});
-  }
-
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
-    final activeArc = _arcRepo.activeArc;
+    final activeArc = ref.watch(activeArcProvider);
+    final userProfile = ref.watch(userProfileProvider);
+    final userName = userProfile?.name ?? 'Gorank';
 
     if (activeArc == null) {
       return Scaffold(
@@ -75,9 +57,9 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    final missions = _arcRepo.todayMissions;
-    final completedCount = _arcRepo.completedMissionsCount;
-    final totalCount = _arcRepo.totalMissionsCount;
+    final missions = ref.watch(dailyMissionsProvider);
+    final completedCount = missions.where((m) => m.completed).length;
+    final totalCount = missions.length;
     final progressPct = (activeArc.progress * 100).round();
     final dayStr = activeArc.currentDay.toString().padLeft(2, '0');
     final totalDaysStr = activeArc.durationDays.toString().padLeft(2, '0');
@@ -102,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     // Greeting
                     Text(
-                      'Good morning, ${_userRepo.user.name}.',
+                      'Good morning, $userName.',
                       style: AppTypography.subtitle.copyWith(
                         color: AppColors.textSecondary,
                         fontSize: 14,
@@ -487,9 +469,11 @@ class _HomeScreenState extends State<HomeScreen> {
             },
             child: Row(
               children: [
-                // Interactive Checkbox Ring
+                // Interactive Checkbox Ring via Riverpod Provider
                 GestureDetector(
-                  onTap: () => _arcRepo.toggleMission(m.id),
+                  onTap: () {
+                    ref.read(dailyMissionsProvider.notifier).toggleMission(m.id);
+                  },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     width: 26,
@@ -708,58 +692,57 @@ class _HomeScreenState extends State<HomeScreen> {
           border: Border.all(color: AppColors.border),
         ),
         child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.surfaceElevated,
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.surfaceElevated,
+              ),
+              child: const Icon(Icons.flag_rounded, size: 18, color: AppColors.gold),
             ),
-            child: const Icon(Icons.flag_rounded, size: 18, color: AppColors.gold),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'NEXT MILESTONE',
-                  style: AppTypography.labelUppercase.copyWith(fontSize: 9),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'First Week',
-                  style: AppTypography.titleSmall.copyWith(fontSize: 14),
-                ),
-                Text(
-                  '6 days to go',
-                  style: AppTypography.bodySmall.copyWith(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'NEXT MILESTONE',
+                    style: AppTypography.labelUppercase.copyWith(fontSize: 9),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 2),
+                  Text(
+                    'First Week',
+                    style: AppTypography.titleSmall.copyWith(fontSize: 14),
+                  ),
+                  Text(
+                    '6 days to go',
+                    style: AppTypography.bodySmall.copyWith(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          // Trail dot indicator
-          Row(
-            children: List.generate(4, (i) {
-              return Container(
-                margin: const EdgeInsets.only(left: 4),
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: i == 0 ? AppColors.gold : AppColors.border,
-                ),
-              );
-            }),
-          ),
-        ],
+            // Trail dot indicator
+            Row(
+              children: List.generate(4, (i) {
+                return Container(
+                  margin: const EdgeInsets.only(left: 4),
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: i == 0 ? AppColors.gold : AppColors.border,
+                  ),
+                );
+              }),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
   }
 }
-

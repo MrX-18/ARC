@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_theme.dart';
+import 'core/services/storage_service.dart';
 import 'features/splash/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize storage layer (Hive storage engine)
+  await StorageService().init();
 
   // Set system UI overlay style for dark cinematic appearance
   SystemChrome.setSystemUIOverlayStyle(
@@ -16,7 +21,11 @@ void main() async {
     ),
   );
 
-  runApp(const ArcApp());
+  runApp(
+    const ProviderScope(
+      child: ArcApp(),
+    ),
+  );
 }
 
 class ArcScrollBehavior extends MaterialScrollBehavior {

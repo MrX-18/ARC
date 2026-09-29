@@ -3,6 +3,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_typography.dart';
 import '../../shared/widgets/arc_button.dart';
 import '../onboarding/goal_selection_screen.dart';
+import '../auth/login_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -211,12 +212,12 @@ class WelcomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               ArcButton(
-                label: 'CONTINUE AS GORANK',
+                label: 'SIGN IN OR REGISTER',
                 onPressed: () {
                   Navigator.of(ctx).pop();
-                  Navigator.of(context).pushReplacement(
+                  Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => const GoalSelectionScreen(),
+                      builder: (_) => const LoginScreen(),
                     ),
                   );
                 },
